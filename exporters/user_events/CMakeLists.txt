@@ -1,13 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 if(WIN32)
   message(FATAL_ERROR "user_events exporter is Linux only for now")
 endif()
 
-option(BUILD_EXAMPLES "Build example" ON)
+option(WITH_EXAMPLES "Build example" ON)
 option(BUILD_TESTING "Build tests" ON)
 option(BUILD_TRACEPOINTS "Build tracepoints library" ON)
 
@@ -28,16 +25,26 @@ if(MAIN_PROJECT)
 endif()
 
 if(BUILD_TRACEPOINTS)
+  set(ORIGINAL_BUILD_SAMPLES ${BUILD_SAMPLES})
+  set(ORIGINAL_BUILD_TOOLS ${BUILD_TOOLS})
+
   # don't build samples and tools from LinuxTracepoints.
   set(BUILD_SAMPLES OFF)
   set(BUILD_TOOLS OFF)
   add_subdirectory(third_party/LinuxTracepoints)
+
+  # Restore original values
+  set(BUILD_SAMPLES ${ORIGINAL_BUILD_SAMPLES})
+  set(BUILD_TOOLS ${ORIGINAL_BUILD_TOOLS})
 endif()
 
 include_directories(include)
 
 add_library(opentelemetry_exporter_user_events_logs
             src/logs_exporter.cc src/recordable.cc src/utils.cc)
+
+target_compile_features(opentelemetry_exporter_user_events_logs
+                        PRIVATE cxx_std_17)
 
 target_compile_definitions(opentelemetry_exporter_user_events_logs
                            PUBLIC HAVE_CONSOLE_LOG HAVE_LOGS_PREVIEW)
@@ -61,6 +68,9 @@ set_target_properties(opentelemetry_exporter_user_events_logs
 
 add_library(opentelemetry_exporter_user_events_metrics src/metrics_exporter.cc)
 
+target_compile_features(opentelemetry_exporter_user_events_metrics
+                        PRIVATE cxx_std_17)
+
 if(MAIN_PROJECT)
   target_include_directories(opentelemetry_exporter_user_events_metrics
                              PRIVATE ${OPENTELEMETRY_CPP_INCLUDE_DIRS})
@@ -75,7 +85,7 @@ else()
            opentelemetry_otlp_recordable tracepoint)
 endif()
 
-if(BUILD_EXAMPLES)
+if(WITH_EXAMPLES)
   add_executable(user_events_logs example/logs/main.cc
                                   example/logs/foo_library.cc)
   target_link_libraries(user_events_logs ${CMAKE_THREAD_LIBS_INIT}
